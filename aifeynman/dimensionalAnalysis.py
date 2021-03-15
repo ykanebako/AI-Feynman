@@ -29,7 +29,8 @@ def load_data(pathdir, filename):
     return(variables.T,f_dependent)
 
 def dimensionalAnalysis(pathdir, filename, eq_symbols):
-    file = pd.read_excel("units.xlsx")
+    # file = pd.read_excel("units.xlsx")
+    file = pd.read_csv("./units.csv")
 
     units = {}
     for i in range(len(file["Variable"])):

@@ -11,10 +11,9 @@ from . import test_points
 import os
 import warnings
 warnings.filterwarnings("ignore")
-is_cuda = torch.cuda.is_available()
 
 
-def check_compositionality(pathdir,filename,model,express,mu,sigma,nu=10):
+def check_compositionality(pathdir, filename, model, device, express, mu, sigma, nu=10):
     data = np.loadtxt(pathdir+filename)
 
     eq = RPN_to_eq(express)
@@ -44,25 +43,19 @@ def check_compositionality(pathdir,filename,model,express,mu,sigma,nu=10):
         diff = abs(f(*fixed[i])-f(*dt))
         with torch.no_grad():
             if diff<1e-4:
-                if is_cuda:
-                    dt = torch.tensor(dt).float().cuda().view(1,len(dt))
-                    dt = torch.cat((torch.tensor([np.zeros(len(dt[0]))]).float().cuda(),dt), 0)
-                    error = torch.tensor(data[:,-1][i]).cuda()-model(dt)[1:]
-                    error = error.cpu().detach().numpy()
-                    list_z = np.append(list_z,np.log2(1+abs(error)*2**30))
-                    z = np.sqrt(len(list_z))*(np.mean(list_z)-mu)/sigma
-                else:
-                    dt = torch.tensor(dt).float().view(1,len(dt))
-                    dt = torch.cat((torch.tensor([np.zeros(len(dt[0]))]).float(),dt), 0)
-                    error =torch.tensor(data[:,-1][i])-model(dt)[1:]
-                    error = error.detach().numpy()
-                    list_z = np.append(list_z,np.log2(1+abs(error)*2**30))
-                    z = np.sqrt(len(list_z))*(np.mean(list_z)-mu)/sigma
+
+                dt = torch.tensor(dt).float().to(device).view(1,len(dt))
+                dt = torch.cat((torch.tensor([np.zeros(len(dt[0]))]).float().to(device),dt), 0)
+                error = torch.tensor(data[:,-1][i]).to(device)-model(dt)[1:]
+                error = error.cpu().detach().numpy()
+                list_z = np.append(list_z,np.log2(1+abs(error)*2**30))
+                z = np.sqrt(len(list_z))*(np.mean(list_z)-mu)/sigma
+
                 i = i + 1
             else:
                 i = i + 1
 
-    
+
     if i==len(data[0:1000]) and np.mean(list_z)<mu:
         return (1,express,np.mean(list_z),np.std(list_z))
     else:

@@ -16,7 +16,6 @@ from matplotlib import pyplot as plt
 from .S_remove_input_neuron import remove_input_neuron
 import time
 
-is_cuda = torch.cuda.is_available()
 
 class SimpleNet(nn.Module):
     def __init__(self, ni):
@@ -41,9 +40,9 @@ def rmse_loss(pred, targ):
     return torch.sqrt(F.mse_loss(pred, targ))/denom
 
 # checks if f(x,y)=f(x-y)
-def check_translational_symmetry_minus(pathdir, filename):
+def check_translational_symmetry_minus(pathdir, filename, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+"/%s" %filename, dtype='str').shape[1]-1
@@ -57,37 +56,29 @@ def check_translational_symmetry_minus(pathdir, filename):
             for j in range(1,n_variables):
                 v = np.loadtxt(pathdir+"/%s" %filename, usecols=(j,))
                 variables = np.column_stack((variables,v))
-        
+
 
         f_dependent = np.loadtxt(pathdir+"/%s" %filename, usecols=(n_variables,))
         f_dependent = np.reshape(f_dependent,(len(f_dependent),1))
 
-        factors = torch.from_numpy(variables) 
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
+        factors = torch.from_numpy(variables)
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-            product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
         models_one = []
         models_rest = []
 
-        with torch.no_grad():            
+        with torch.no_grad():
             # make the shift x->x+a for 2 variables at a time (different variables)
             min_error = 1000
             best_i = -1
@@ -116,10 +107,10 @@ def check_translational_symmetry_minus(pathdir, filename):
     except Exception as e:
         print(e)
         return (-1,-1,-1,-1,-1)
-    
-def do_translational_symmetry_minus(pathdir, filename, i,j):
+
+def do_translational_symmetry_minus(pathdir, filename, i, j, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+"/%s" %filename, dtype='str').shape[1]-1
@@ -128,36 +119,28 @@ def do_translational_symmetry_minus(pathdir, filename, i,j):
         for k in range(1,n_variables):
             v = np.loadtxt(pathdir+"/%s" %filename, usecols=(k,))
             variables = np.column_stack((variables,v))
-        
+
         f_dependent = np.loadtxt(pathdir+"/%s" %filename, usecols=(n_variables,))
         f_dependent = np.reshape(f_dependent,(len(f_dependent),1))
 
-        factors = torch.from_numpy(variables) 
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
+        factors = torch.from_numpy(variables)
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-            product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
         models_one = []
         models_rest = []
 
-        with torch.no_grad():   
+        with torch.no_grad():
             file_name = filename + "-translated_minus"
             ct_median = torch.median(torch.from_numpy(variables[:,j]))
             data_translated = variables
@@ -165,22 +148,22 @@ def do_translational_symmetry_minus(pathdir, filename, i,j):
             data_translated =  np.delete(data_translated, j, axis=1)
             data_translated = np.column_stack((data_translated,f_dependent))
             try:
-                os.mkdir("results/translated_data_minus/")
+                os.mkdir(f"{results_path}/translated_data_minus/")
             except:
                 pass
-            np.savetxt("results/translated_data_minus/"+file_name , data_translated)
-            remove_input_neuron(model,n_variables,j,ct_median,"results/NN_trained_models/models/"+filename + "-translated_minus_pretrained.h5")
-            return ("results/translated_data_minus/",file_name)
+            np.savetxt(f"{results_path}/translated_data_minus/"+file_name , data_translated)
+            remove_input_neuron(model, device, n_variables,j,ct_median,f"{results_path}/NN_trained_models/models/"+filename + "-translated_minus_pretrained.h5")
+            return (f"{results_path}/translated_data_minus/",file_name)
 
     except Exception as e:
         print(e)
         return (-1,-1)
-        
+
 
 # checks if f(x,y)=f(x/y)
-def check_translational_symmetry_divide(pathdir, filename):
+def check_translational_symmetry_divide(pathdir, filename, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+"/%s" %filename, dtype='str').shape[1]-1
@@ -194,30 +177,22 @@ def check_translational_symmetry_divide(pathdir, filename):
             for j in range(1,n_variables):
                 v = np.loadtxt(pathdir+"/%s" %filename, usecols=(j,))
                 variables = np.column_stack((variables,v))
-        
+
 
         f_dependent = np.loadtxt(pathdir+"/%s" %filename, usecols=(n_variables,))
         f_dependent = np.reshape(f_dependent,(len(f_dependent),1))
 
-        factors = torch.from_numpy(variables) 
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
+        factors = torch.from_numpy(variables)
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-            product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
@@ -253,11 +228,11 @@ def check_translational_symmetry_divide(pathdir, filename):
     except Exception as e:
         print(e)
         return (-1,-1,-1,-1,-1)
-    
-    
-def do_translational_symmetry_divide(pathdir, filename, i,j):
+
+
+def do_translational_symmetry_divide(pathdir, filename, i, j, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+"/%s" %filename, dtype='str').shape[1]-1
@@ -266,36 +241,28 @@ def do_translational_symmetry_divide(pathdir, filename, i,j):
         for k in range(1,n_variables):
             v = np.loadtxt(pathdir+"/%s" %filename, usecols=(k,))
             variables = np.column_stack((variables,v))
-        
+
         f_dependent = np.loadtxt(pathdir+"/%s" %filename, usecols=(n_variables,))
         f_dependent = np.reshape(f_dependent,(len(f_dependent),1))
 
-        factors = torch.from_numpy(variables) 
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
+        factors = torch.from_numpy(variables)
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-            product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
         models_one = []
         models_rest = []
 
-        with torch.no_grad():             
+        with torch.no_grad():
             file_name = filename + "-translated_divide"
             data_translated = variables
             ct_median =torch.median(torch.from_numpy(variables[:,j]))
@@ -303,21 +270,21 @@ def do_translational_symmetry_divide(pathdir, filename, i,j):
             data_translated =  np.delete(data_translated, j, axis=1)
             data_translated = np.column_stack((data_translated,f_dependent))
             try:
-                os.mkdir("results/translated_data_divide/")
+                os.mkdir(f"{results_path}/translated_data_divide/")
             except:
                 pass
-            np.savetxt("results/translated_data_divide/"+file_name , data_translated)
-            remove_input_neuron(model,n_variables,j,ct_median,"results/NN_trained_models/models/"+filename + "-translated_divide_pretrained.h5")
-            return ("results/translated_data_divide/",file_name)
+            np.savetxt(f"{results_path}/translated_data_divide/"+file_name , data_translated)
+            remove_input_neuron(model, device, n_variables,j,ct_median,f"{results_path}/NN_trained_models/models/"+filename + "-translated_divide_pretrained.h5")
+            return (f"{results_path}/translated_data_divide/",file_name)
 
     except Exception as e:
         print(e)
         return (-1,1)
 
 # checks if f(x,y)=f(x*y)
-def check_translational_symmetry_multiply(pathdir, filename):
+def check_translational_symmetry_multiply(pathdir, filename, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+"/%s" %filename, dtype='str').shape[1]-1
@@ -331,30 +298,22 @@ def check_translational_symmetry_multiply(pathdir, filename):
             for j in range(1,n_variables):
                 v = np.loadtxt(pathdir+"/%s" %filename, usecols=(j,))
                 variables = np.column_stack((variables,v))
-        
+
 
         f_dependent = np.loadtxt(pathdir+"/%s" %filename, usecols=(n_variables,))
         f_dependent = np.reshape(f_dependent,(len(f_dependent),1))
 
-        factors = torch.from_numpy(variables) 
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
+        factors = torch.from_numpy(variables)
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-            product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
@@ -391,9 +350,9 @@ def check_translational_symmetry_multiply(pathdir, filename):
         print(e)
         return (-1,-1,-1,-1,-1)
 
-def do_translational_symmetry_multiply(pathdir, filename, i,j):
+def do_translational_symmetry_multiply(pathdir, filename, i, j, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+"/%s" %filename, dtype='str').shape[1]-1
@@ -402,36 +361,28 @@ def do_translational_symmetry_multiply(pathdir, filename, i,j):
         for k in range(1,n_variables):
             v = np.loadtxt(pathdir+"/%s" %filename, usecols=(k,))
             variables = np.column_stack((variables,v))
-        
+
         f_dependent = np.loadtxt(pathdir+"/%s" %filename, usecols=(n_variables,))
         f_dependent = np.reshape(f_dependent,(len(f_dependent),1))
 
-        factors = torch.from_numpy(variables) 
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
+        factors = torch.from_numpy(variables)
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-            product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
         models_one = []
         models_rest = []
 
-        with torch.no_grad():             
+        with torch.no_grad():
             file_name = filename + "-translated_multiply"
             data_translated = variables
             ct_median =torch.median(torch.from_numpy(variables[:,j]))
@@ -439,21 +390,21 @@ def do_translational_symmetry_multiply(pathdir, filename, i,j):
             data_translated =  np.delete(data_translated, j, axis=1)
             data_translated = np.column_stack((data_translated,f_dependent))
             try:
-                os.mkdir("results/translated_data_multiply/")
+                os.mkdir(f"{results_path}/translated_data_multiply/")
             except:
                 pass
-            np.savetxt("results/translated_data_multiply/"+file_name , data_translated)
-            remove_input_neuron(model,n_variables,j,ct_median,"results/NN_trained_models/models/"+filename + "-translated_multiply_pretrained.h5")
-            return ("results/translated_data_multiply/",file_name)
+            np.savetxt(f"{results_path}/translated_data_multiply/"+file_name , data_translated)
+            remove_input_neuron(model, device, n_variables,j,ct_median,f"{results_path}/NN_trained_models/models/"+filename + "-translated_multiply_pretrained.h5")
+            return (f"{results_path}/translated_data_multiply/",file_name)
 
     except Exception as e:
         print(e)
         return (-1,1)
 
 # checks if f(x,y)=f(x+y)
-def check_translational_symmetry_plus(pathdir, filename):
+def check_translational_symmetry_plus(pathdir, filename, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+"/%s" %filename, dtype='str').shape[1]-1
@@ -467,30 +418,22 @@ def check_translational_symmetry_plus(pathdir, filename):
             for j in range(1,n_variables):
                 v = np.loadtxt(pathdir+"/%s" %filename, usecols=(j,))
                 variables = np.column_stack((variables,v))
-        
+
 
         f_dependent = np.loadtxt(pathdir+"/%s" %filename, usecols=(n_variables,))
         f_dependent = np.reshape(f_dependent,(len(f_dependent),1))
 
-        factors = torch.from_numpy(variables) 
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
+        factors = torch.from_numpy(variables)
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-                product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
@@ -525,10 +468,10 @@ def check_translational_symmetry_plus(pathdir, filename):
     except Exception as e:
         print(e)
         return (-1,-1,-1,-1,-1)
-    
-def do_translational_symmetry_plus(pathdir, filename, i,j):
+
+def do_translational_symmetry_plus(pathdir, filename, i, j, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+"/%s" %filename, dtype='str').shape[1]-1
@@ -537,36 +480,28 @@ def do_translational_symmetry_plus(pathdir, filename, i,j):
         for k in range(1,n_variables):
             v = np.loadtxt(pathdir+"/%s" %filename, usecols=(k,))
             variables = np.column_stack((variables,v))
-        
+
         f_dependent = np.loadtxt(pathdir+"/%s" %filename, usecols=(n_variables,))
         f_dependent = np.reshape(f_dependent,(len(f_dependent),1))
 
-        factors = torch.from_numpy(variables) 
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
+        factors = torch.from_numpy(variables)
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-            product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
         models_one = []
         models_rest = []
 
-        with torch.no_grad():             
+        with torch.no_grad():
             file_name = filename + "-translated_plus"
             data_translated = variables
             ct_median =torch.median(torch.from_numpy(variables[:,j]))
@@ -574,13 +509,13 @@ def do_translational_symmetry_plus(pathdir, filename, i,j):
             data_translated =  np.delete(data_translated, j, axis=1)
             data_translated = np.column_stack((data_translated,f_dependent))
             try:
-                os.mkdir("results/translated_data_plus/")
+                os.mkdir(f"{results_path}/translated_data_plus/")
             except:
                 pass
-            np.savetxt("results/translated_data_plus/"+file_name , data_translated)
-            remove_input_neuron(model,n_variables,j,ct_median,"results/NN_trained_models/models/"+filename + "-translated_plus_pretrained.h5")
-            return ("results/translated_data_plus/", file_name)
-        
+            np.savetxt(f"{results_path}/translated_data_plus/"+file_name , data_translated)
+            remove_input_neuron(model, device, n_variables,j,ct_median,f"{results_path}/NN_trained_models/models/"+filename + "-translated_plus_pretrained.h5")
+            return (f"{results_path}/translated_data_plus/", file_name)
+
     except Exception as e:
         print(e)
         return (-1,-1)

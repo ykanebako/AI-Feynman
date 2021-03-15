@@ -29,7 +29,7 @@ from .RPN_to_eq import RPN_to_eq
 from .S_get_number_DL_snapped import get_number_DL_snapped
 
 # parameters: path to data, math (not RPN) expression
-def add_bf_on_numbers_on_pareto(pathdir, filename, PA, math_expr):
+def add_bf_on_numbers_on_pareto(pathdir, filename, PA, math_expr, results_path):
     input_data = np.loadtxt(pathdir+filename)
     def unsnap_recur(expr, param_dict, unsnapped_param_dict):
         """Recursively transform each numerical value into a learnable parameter."""
@@ -78,7 +78,7 @@ def add_bf_on_numbers_on_pareto(pathdir, filename, PA, math_expr):
             eq = eq_
 
             np.savetxt(pathdir+"number_for_bf_%s.txt" %w, [eq_numbers[w]])
-            brute_force_number(pathdir,"number_for_bf_%s.txt" %w)
+            brute_force_number(pathdir,"number_for_bf_%s.txt" %w, results_path)
             # Load the predictions made by the bf code
             bf_numbers = np.loadtxt("results.dat",usecols=(1,),dtype="str")
             new_numbers = copy.deepcopy(eq_numbers)

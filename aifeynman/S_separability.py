@@ -14,7 +14,6 @@ from matplotlib import pyplot as plt
 from itertools import combinations
 import time
 
-is_cuda = torch.cuda.is_available()
 
 class SimpleNet(nn.Module):
     def __init__(self, ni):
@@ -38,9 +37,9 @@ def rmse_loss(pred, targ):
     denom = torch.sqrt(denom.sum()/len(denom))
     return torch.sqrt(F.mse_loss(pred, targ))/denom
 
-def check_separability_plus(pathdir, filename):
+def check_separability_plus(pathdir, filename, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+filename, dtype='str').shape[1]-1
@@ -54,30 +53,22 @@ def check_separability_plus(pathdir, filename):
             for j in range(1,n_variables):
                 v = np.loadtxt(pathdir+filename, usecols=(j,))
                 variables = np.column_stack((variables,v))
-        
+
 
         f_dependent = np.loadtxt(pathdir+filename, usecols=(n_variables,))
         f_dependent = np.reshape(f_dependent,(len(f_dependent),1))
 
-        factors = torch.from_numpy(variables) 
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
+        factors = torch.from_numpy(variables)
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-            product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
@@ -122,15 +113,15 @@ def check_separability_plus(pathdir, filename):
                         best_mu = mu
                         best_sigma = sigma
         return min_error, best_i, best_j, best_mu, best_sigma
-                        
+
     except Exception as e:
         print(e)
-        return (-1,-1,-1,-1,-1)                    
-                    
-                                           
-def do_separability_plus(pathdir, filename, list_i,list_j):
+        return (-1,-1,-1,-1,-1)
+
+
+def do_separability_plus(pathdir, filename, list_i, list_j, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+filename, dtype='str').shape[1]-1
@@ -144,37 +135,29 @@ def do_separability_plus(pathdir, filename, list_i,list_j):
             for j in range(1,n_variables):
                 v = np.loadtxt(pathdir+filename, usecols=(j,))
                 variables = np.column_stack((variables,v))
-        
+
 
         f_dependent = np.loadtxt(pathdir+filename, usecols=(n_variables,))
         f_dependent = np.reshape(f_dependent,(len(f_dependent),1))
 
-        factors = torch.from_numpy(variables) 
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
+        factors = torch.from_numpy(variables)
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-            product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
         # make some variables at the time equal to the median of factors
         models_one = []
         models_rest = []
-        
+
         fact_vary = factors.clone()
         for k in range(len(factors[0])):
             fact_vary[:,k] = torch.full((len(factors),),torch.median(factors[:,k]))
@@ -192,27 +175,27 @@ def do_separability_plus(pathdir, filename, list_i,list_j):
             data_sep_1 = variables
             data_sep_1 = np.delete(data_sep_1,list_j,axis=1)
             data_sep_1 = np.column_stack((data_sep_1,model(fact_vary_one).cpu()))
-            # save the second half  
+            # save the second half
             data_sep_2 = variables
             data_sep_2 = np.delete(data_sep_2,list_i,axis=1)
             data_sep_2 = np.column_stack((data_sep_2,model(fact_vary_rest).cpu()-model(fact_vary).cpu()))
             try:
-                os.mkdir("results/separable_add/")
+                os.mkdir(f"{results_path}/separable_add/")
             except:
                 pass
-            np.savetxt("results/separable_add/"+str1,data_sep_1)
-            np.savetxt("results/separable_add/"+str2,data_sep_2)
+            np.savetxt(f"{results_path}/separable_add/"+str1,data_sep_1)
+            np.savetxt(f"{results_path}/separable_add/"+str2,data_sep_2)
             # if it is separable, return the 2 new files created and the index of the column with the separable variable
-            return ("results/separable_add/",str1,"results/separable_add/",str2)
+            return (f"{results_path}/separable_add/",str1,f"{results_path}/separable_add/",str2)
 
     except Exception as e:
         print(e)
         return (-1,-1)
 
-        
-def check_separability_multiply(pathdir, filename):
+
+def check_separability_multiply(pathdir, filename, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+filename, dtype='str').shape[1]-1
@@ -226,11 +209,11 @@ def check_separability_multiply(pathdir, filename):
             for j in range(1,n_variables):
                 v = np.loadtxt(pathdir+filename, usecols=(j,))
                 variables = np.column_stack((variables,v))
-        
+
 
         f_dependent = np.loadtxt(pathdir+filename, usecols=(n_variables,))
 
-        # Pick only data which is close enough to the maximum value (5 times less or higher)                                                                   
+        # Pick only data which is close enough to the maximum value (5 times less or higher)
         max_output = np.max(abs(f_dependent))
         use_idx = np.where(abs(f_dependent)>=max_output/5)
         f_dependent = f_dependent[use_idx]
@@ -238,24 +221,16 @@ def check_separability_multiply(pathdir, filename):
         variables = variables[use_idx]
 
         factors = torch.from_numpy(variables)
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-            product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
@@ -299,16 +274,16 @@ def check_separability_multiply(pathdir, filename):
                         best_mu = mu
                         best_sigma = sigma
         return min_error, best_i, best_j, best_mu, best_sigma
-                    
+
     except Exception as e:
         print(e)
-        return (-1,-1,-1,-1,-1)                         
+        return (-1,-1,-1,-1,-1)
 
-                    
-                    
-def do_separability_multiply(pathdir, filename, list_i,list_j):
+
+
+def do_separability_multiply(pathdir, filename, list_i, list_j, device, results_path):
     try:
-        pathdir_weights = "results/NN_trained_models/models/"
+        pathdir_weights = f"{results_path}/NN_trained_models/models/"
 
         # load the data
         n_variables = np.loadtxt(pathdir+filename, dtype='str').shape[1]-1
@@ -322,36 +297,28 @@ def do_separability_multiply(pathdir, filename, list_i,list_j):
             for j in range(1,n_variables):
                 v = np.loadtxt(pathdir+filename, usecols=(j,))
                 variables = np.column_stack((variables,v))
-        
+
 
         f_dependent = np.loadtxt(pathdir+filename, usecols=(n_variables,))
         f_dependent = np.reshape(f_dependent,(len(f_dependent),1))
 
         factors = torch.from_numpy(variables)
-        if is_cuda:
-            factors = factors.cuda()
-        else:
-            factors = factors
         factors = factors.float()
+        factors = factors.to(device)
 
         product = torch.from_numpy(f_dependent)
-        if is_cuda:
-            product = product.cuda()
-        else:
-            product = product
         product = product.float()
+        product = product.to(device)
 
         # load the trained model and put it in evaluation mode
-        if is_cuda:
-            model = SimpleNet(n_variables).cuda()
-        else:
-            model = SimpleNet(n_variables)
+        model = SimpleNet(n_variables).to(device)
+
         model.load_state_dict(torch.load(pathdir_weights+filename+".h5"))
         model.eval()
 
         # make some variables at the time equal to the median of factors
         models_one = []
-        models_rest = []                    
+        models_rest = []
 
         fact_vary = factors.clone()
         for k in range(len(factors[0])):
@@ -361,8 +328,8 @@ def do_separability_multiply(pathdir, filename, list_i,list_j):
         for t1 in list_j:
             fact_vary_one[:,t1] = torch.full((len(factors),),torch.median(factors[:,t1]))
         for t2 in list_i:
-            fact_vary_rest[:,t2] = torch.full((len(factors),),torch.median(factors[:,t2]))        
-        
+            fact_vary_rest[:,t2] = torch.full((len(factors),),torch.median(factors[:,t2]))
+
         with torch.no_grad():
             str1 = filename+"-mult_a"
             str2 = filename+"-mult_b"
@@ -370,21 +337,21 @@ def do_separability_multiply(pathdir, filename, list_i,list_j):
             data_sep_1 = variables
             data_sep_1 = np.delete(data_sep_1,list_j,axis=1)
             data_sep_1 = np.column_stack((data_sep_1,model(fact_vary_one).cpu()))
-            # save the second half  
+            # save the second half
             data_sep_2 = variables
             data_sep_2 = np.delete(data_sep_2,list_i,axis=1)
             data_sep_2 = np.column_stack((data_sep_2,model(fact_vary_rest).cpu()/model(fact_vary).cpu()))
             try:
-                os.mkdir("results/separable_mult/")
+                os.mkdir(f"{results_path}/separable_mult/")
             except:
                 pass
-            np.savetxt("results/separable_mult/"+str1,data_sep_1)
-            np.savetxt("results/separable_mult/"+str2,data_sep_2)
+            np.savetxt(f"{results_path}/separable_mult/"+str1,data_sep_1)
+            np.savetxt(f"{results_path}/separable_mult/"+str2,data_sep_2)
             # if it is separable, return the 2 new files created and the index of the column with the separable variable
-            return ("results/separable_mult/",str1,"results/separable_mult/",str2)
+            return (f"{results_path}/separable_mult/",str1,f"{results_path}/separable_mult/",str2)
 
     except Exception as e:
         print(e)
         return (-1,-1)
 
-        
+

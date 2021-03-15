@@ -12,18 +12,17 @@ from . import test_points
 import os
 import warnings
 warnings.filterwarnings("ignore")
-is_cuda = torch.cuda.is_available()
 
 
 # fix this to work with the other variables constant
-def check_gen_sym(pathdir,filename,model,gen_sym_idx,express,mu,sigma,nu=10):
+def check_gen_sym(pathdir, filename, model, device, gen_sym_idx, express, mu, sigma, nu=10):
     gen_sym_idx = np.append(gen_sym_idx,-1)
     data_all = np.loadtxt(pathdir+filename)
     # Choose only the data to be separated
     data = np.loadtxt(pathdir+filename)[:,gen_sym_idx]
     # Turn the equation from RPN to normal mathematical expression
     eq = RPN_to_eq(express)
-    
+
     # Get the variables appearing in the equation
     possible_vars = ["x%s" %i for i in np.arange(0,30,1)]
     variables = []
@@ -48,43 +47,30 @@ def check_gen_sym(pathdir,filename,model,gen_sym_idx,express,mu,sigma,nu=10):
         diff = abs(f(*fixed[i])-f(*dt))
         with torch.no_grad():
             if diff<1e-4:
-                if is_cuda:
-                    dt_ = data_all[i]
-                    ii = 0
-                    for k in gen_sym_idx[:-1]:
-                        dt_[k]=dt[ii]
-                        ii = ii + 1
-                    dt = torch.tensor(dt_).float().cuda().view(1,len(dt_))
-                    dt = torch.cat((torch.tensor([np.zeros(len(dt[0]))]).float().cuda(),dt), 0)
-                    error = torch.tensor(data[:,-1][i]).cuda()-model(dt[:,:-1])[1:]
-                    error = error.cpu().detach().numpy()
-                    list_z = np.append(list_z,np.log2(1+abs(error)*2**30))
-                    z = np.sqrt(len(list_z))*(np.mean(list_z)-mu)/sigma
-                else:
-                    dt_ = data_all[i]
-                    ii = 0
-                    for k in gen_sym_idx[:-1]:
-                        dt_[k]=dt[ii]
-                        ii = ii + 1
-                    dt = torch.tensor(dt_).float().view(1,len(dt_))
-                    dt = torch.cat((torch.tensor([np.zeros(len(dt[0]))]).float(),dt), 0)
-                    error =torch.tensor(data[:,-1][i])-model(dt[:,:-1])[1:]
-                    error = error.detach().numpy()
-                    list_z = np.append(list_z,np.log2(1+abs(error)*2**30))
-                    z = np.sqrt(len(list_z))*(np.mean(list_z)-mu)/sigma
-                    
+                dt_ = data_all[i]
+                ii = 0
+                for k in gen_sym_idx[:-1]:
+                    dt_[k]=dt[ii]
+                    ii = ii + 1
+                dt = torch.tensor(dt_).float().to(device).view(1,len(dt_))
+                dt = torch.cat((torch.tensor([np.zeros(len(dt[0]))]).float().to(device),dt), 0)
+                error = torch.tensor(data[:,-1][i]).to(device)-model(dt[:,:-1])[1:]
+                error = error.cpu().detach().numpy()
+                list_z = np.append(list_z,np.log2(1+abs(error)*2**30))
+                z = np.sqrt(len(list_z))*(np.mean(list_z)-mu)/sigma
+
                 i = i + 1
             else:
                 i = i + 1
 
-    
+
     if i==len(data[0:1000]) and np.mean(list_z)<mu:
         return (1,express,np.mean(list_z),np.std(list_z))
     else:
         return (0,express,100,100)
 
 
-def do_gen_sym(pathdir, filename, gen_sym_idx,express):
+def do_gen_sym(pathdir, filename, gen_sym_idx, express, results_path):
     gen_sym_idx = np.append(gen_sym_idx,-1)
     data_all = np.loadtxt(pathdir+filename)
 
@@ -114,14 +100,15 @@ def do_gen_sym(pathdir, filename, gen_sym_idx,express):
     save_data = data_all
 
     try:
-        os.mkdir("results/gen_sym")
+        os.mkdir(f"{results_path}/gen_sym")
     except:
         pass
 
     file_name = filename + "-gen_sym"
-    np.savetxt("results/gen_sym/"+file_name,save_data)
+    np.savetxt(f"{results_path}/gen_sym/"+file_name,save_data)
 
-    return ("results/gen_sym/", file_name)
+    return (f"{results_path}/gen_sym/", file_name)
+
 
 def add_gen_sym_on_pareto(PA1,PA, gen_sym_idx, express):
     # Turn the equation from RPN to normal mathematical expression
@@ -134,12 +121,12 @@ def add_gen_sym_on_pareto(PA1,PA, gen_sym_idx, express):
         exp1 = PA1[i][2]
         temp_list = copy.deepcopy(gen_sym_idx)
         bf_eq = math_eq
-        
+
         while(len(temp_list)>1):
             for j in range(len(possible_vars)-len(temp_list),temp_list[-1]-len(temp_list)+1,-1):
                 exp1 = exp1.replace(possible_vars[j],possible_vars[j+1])
             temp_list = np.delete(temp_list,-1)
-        
+
         # replace variables in bf_eq
         arr_idx = np.flip(np.arange(0,len(gen_sym_idx),1), axis=0)
         actual_idx = np.flip(gen_sym_idx, axis=0)
